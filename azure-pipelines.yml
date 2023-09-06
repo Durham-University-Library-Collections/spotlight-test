@@ -1,0 +1,75 @@
+# Example Docker Deployment to AWH
+
+# Add steps that run tests, save build artifacts, deploy, and more:
+# https://learn.microsoft.com/en-gb/azure/devops/pipelines/ecosystems/containers/acr-template
+
+trigger:
+- main
+
+pool:
+  # For this example, we need an agent which has Docker installed
+  # vmImage: ubuntu-latest
+ name: Default
+ demands:
+ - Agent.Name -equals vmlsha1
+
+resources:
+- repo: self
+
+variables:
+  - group: awh_training_container_example
+
+  - name: azureSubscription
+    value: 'svc-con-awh-01'
+  - name: dockerRegistryServiceConnection 
+    value: 'duuksawhacr01'
+  - name: dockerRegistryServerURL
+    value: 'duuksawhacr01.azurecr.io'
+  - name: dockerfilePath
+    value: 'Dockerfile'
+  - name: imageRepository
+    value: 'awh-training-container-example'
+  - name: tag
+    value: 'latest'
+  - name: appName
+    value: 'duuksawhase-training-container01' # Update this value.
+  - name: appResourceGroupName
+    value: 'du-uks-awh-training' # Update this value.
+
+steps:
+  - task: Docker@2
+    displayName: Login to ACR
+    inputs:
+      command: login
+      containerRegistry: $(dockerRegistryServiceConnection)
+
+  # https://learn.microsoft.com/en-us/azure/devops/pipelines/apps/cd/deploy-docker-webapp
+  - task: Docker@2
+    displayName: Build and push an image to container registry
+    inputs:
+      command: buildAndPush
+      repository: $(imageRepository)
+      dockerfile: $(dockerfilePath)
+      containerRegistry: $(dockerRegistryServiceConnection)
+      tags: |
+        $(tag)
+
+  # https://learn.microsoft.com/en-us/azure/devops/pipelines/tasks/reference/azure-rm-web-app-deployment-v4
+  - task: AzureRmWebAppDeployment@4
+    displayName: Deploy Container to Web App
+    inputs:
+      appType: 'webAppContainer'
+      deployToSlotOrASE: true
+      azureSubscription: '$(azureSubscription)'
+      ResourceGroupName: '$(appResourceGroupName)'
+      WebAppName: '$(appName)'
+      DockerNamespace: $(dockerRegistryServerURL)
+      DockerRepository: $(imageRepository)
+      # commitHash defined in above script.
+      DockerImageTag: $(tag)
+      AppSettings: >-
+        -DOCKER_REGISTRY_SERVER_USERNAME "$(DOCKER_REGISTRY_SERVER_USERNAME)"
+        -DOCKER_REGISTRY_SERVER_PASSWORD "$(DOCKER_REGISTRY_SERVER_PASSWORD)"
+        -DOCKER_REGISTRY_SERVER_URL "https://$(dockerRegistryServerURL)"
+        -WEBSITES_PORT "8000"
+
