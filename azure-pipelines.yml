@@ -32,7 +32,7 @@ variables:
   - name: tag
     value: 'latest'
   - name: appName
-    value: 'duuksawhase-training-container01' # Update this value.
+    value: 'duuksawh-tomhylandspotlight01' # Update this value.
   - name: appResourceGroupName
     value: 'du-uks-awh-training' # Update this value.
 
